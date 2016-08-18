@@ -7,17 +7,34 @@ const Request = require('request');
 
 class Quote extends Command {
 
-	get usage() { return '<message>'; }
+	get usage() { return '<message|user>'; }
 	get desc() { return 'generate a quote of a message'; }
 
 	*process(msg, suffix) {
 		if (!suffix) return this.bot.sendMessage(msg, Util.wrap('No message given'));
 
-		// Get the message.
-		const message = this.bot.getMessage(suffix);
+		let message;
 
-		// If the message is null, return.
-		if (!message) return this.bot.sendMessage(msg, Util.wrap('Unknown message \'' + suffix + '\''));
+		// Check if a mention was used.
+		if (msg.mentions.length) {
+			const user = msg.mentions[0];
+
+			// Try to get the latest message by the user.
+			message = msg.channel.messages
+				.getAll('author', user)
+				.sort((a, b) => b.timestamp - a.timestamp)
+				.filter(m => !m.equals(msg))
+				[0];
+
+			// If the message is null, return.
+			if (!message) return this.bot.sendMessage(msg, Util.wrap('No recent messages found'));
+		} else {
+			// Get the message.
+			message = this.bot.getMessage(suffix);
+
+			// If the message is null, return.
+			if (!message) return this.bot.sendMessage(msg, Util.wrap('Unknown message \'' + suffix + '\''));
+		}
 
 		// Get the name to display.
 		const details = message.server.detailsOfUser(message.author);
@@ -55,51 +72,63 @@ class Quote extends Command {
 						FS.unlink(avatarPath);
 						avatar.destroy();
 
-						// Add the name.
-						let font = '/usr/share/fonts/TTF/arialbd.ttf';
-						let color = img.colorAllocate(100, 100, 100);
-						img.stringFT(color, font, 16, 0, 86, 28, name);
-
-						// Figure out dimensions for the text.
-						font = '/usr/share/fonts/TTF/arial.ttf';
-						color = img.colorAllocate(120, 120, 120);
-						let box;
-						let width = 24;
-						do {
-							box = img.stringFTBBox(color, font, 16, 0, 86, 54, this.wordwrap(text, width));
-							width ++;
-						} while (box[2] < 600 && width < text.length);
-						text = this.wordwrap(text, width - 2);
-						box = img.stringFTBBox(color, font, 16, 0, 86, 54, text);
-
-						// Create a new image.
-						GD.createTrueColor(600, Math.max(70, box[3] + 10), (err, img2) => {
+						// Load the avatar overlay.
+						GD.openPng(__dirname + '/quote-overlay.png', (err, overlay) => {
 							if (err) return reject(err);
 
-							// Set the background color.
-							img2.fill(0, 0, 0xffffff);
+							// Overlay the circle.
+							overlay.copy(img, 20, 10, 0, 0, 50, 50);
+							overlay.destroy();
 
-							// Copy the old image onto the new image.
-							img.copy(img2, 0, 0, 0, 0, img.width, img.height);
-							img.destroy();
+							// Add the name.
+							let font = '/usr/share/fonts/TTF/arialbd.ttf';
+							let color = img.colorAllocate(100, 100, 100);
+							img.stringFT(color, font, 16, 0, 86, 28, name);
 
-							// Add the text.
-							let color = img2.colorAllocate(120, 120, 120);
-							img2.stringFT(color, font, 16, 0, 86, 54, text);
+							// Figure out dimensions for the text.
+							font = '/usr/share/fonts/TTF/arial.ttf';
+							color = img.colorAllocate(120, 120, 120);
+							let box;
+							let width = 24;
+							do {
+								box = img.stringFTBBox(color, font, 16, 0, 86, 54, this.wordwrap(text, width));
+								width ++;
+							} while (box[2] < 600 && width < text.length);
+							while (box[2] > 600) {
+								box = img.stringFTBBox(color, font, 16, 0, 86, 54, this.wordwrap(text, width));
+								width --;
+							}
+							text = this.wordwrap(text, width);
 
-							// Add a bar for the quote.
-							color = GD.trueColor(240, 240, 240);
-							img2.filledRectangle(0, 0, 7, img2.height, color);
-
-							// Save the image.
-							const path = '/tmp/discord-quote-' + new Date().getTime() + '-' + (Math.random() * 65535) + '.png';
-							img2.savePng(path, err => {
+							// Create a new image.
+							GD.createTrueColor(600, Math.max(70, box[3] + 10), (err, img2) => {
 								if (err) return reject(err);
 
-								img2.destroy();
+								// Set the background color.
+								img2.fill(0, 0, 0xffffff);
 
-								// Resolve with the path.
-								resolve(path);
+								// Copy the old image onto the new image.
+								img.copy(img2, 0, 0, 0, 0, img.width, img.height);
+								img.destroy();
+
+								// Add the text.
+								let color = img2.colorAllocate(120, 120, 120);
+								img2.stringFT(color, font, 16, 0, 86, 54, text);
+
+								// Add a bar for the quote.
+								color = GD.trueColor(240, 240, 240);
+								img2.filledRectangle(0, 0, 7, img2.height, color);
+
+								// Save the image.
+								const path = '/tmp/discord-quote-' + new Date().getTime() + '-' + (Math.random() * 65535) + '.png';
+								img2.savePng(path, err => {
+									if (err) return reject(err);
+
+									img2.destroy();
+
+									// Resolve with the path.
+									resolve(path);
+								});
 							});
 						});
 					});
