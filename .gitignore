@@ -1,0 +1,9 @@
+# No vim .swp files.
+*.swp
+
+# Don't leak the API keys.
+authorization.json
+
+# No node modules or logs.
+node_modules/
+npm-debug.log
