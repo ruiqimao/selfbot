@@ -72,7 +72,8 @@ class Bot extends EventEmitter {
 		// Create a new client.
 		this.client = new Client({
 			forceFetchUsers: true,
-			rateLimitAsError: true
+			rateLimitAsError: true,
+			bot: false
 		});
 
 		// Catch all errors.
