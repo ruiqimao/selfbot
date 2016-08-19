@@ -94,7 +94,7 @@ class Quote extends Command {
 								box = img.stringFTBBox(color, font, 16, 0, 86, 54, this.wordwrap(text, width));
 								width ++;
 							} while (box[2] < 600 && width < text.length);
-							while (box[2] > 600) {
+							while (box[2] > 590) {
 								box = img.stringFTBBox(color, font, 16, 0, 86, 54, this.wordwrap(text, width));
 								width --;
 							}
