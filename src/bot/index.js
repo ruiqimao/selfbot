@@ -73,6 +73,7 @@ class Bot extends EventEmitter {
 		this.client = new Client({
 			forceFetchUsers: true,
 			rateLimitAsError: true,
+			autoReconnect: true,
 			bot: false
 		});
 
